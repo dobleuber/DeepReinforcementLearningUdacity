@@ -7,6 +7,14 @@ I was not sure about how to start this exercise, so I decided to take as base th
 For my model I built a DNN with 4 linear fully connected layers with 256, 256, 128 and 64 nodes. ReLU inter-layer and Softmax in the output.
 I am working with Replay Memory, and soft update for my agent.
 
+My hyperparameters are:
+* BUFFER_SIZE, replay buffer size: 100.000
+* BATCH_SIZE, minibatch size: 64
+* GAMMA, discount factor: 0.99 
+* TAU, for soft update of target parameters: 1e-3
+* LR, learning rate: 5e-4 
+* UPDATE_EVERY, how often to update the network: 4
+
 ### Plot
 ![alt Performance plot](./plot.png)
 
