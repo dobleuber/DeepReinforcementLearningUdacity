@@ -1,5 +1,16 @@
 # Navigation
 
+### Q-Learning
+Q-learning is a model-free reinforcement learning algorithm to learn the value of an action in a particular state.
+
+For any finite Markov decision process, Q-learning finds an optimal policy by maximizing the expected value of the total reward over any and all successive steps.
+Q-learning can identify an optimal policy given infinite exploration time and party-random policy.
+
+The central idea behind Q-learning is we had a function `Q*:State×Action→ℝ `, that function tell us if we took an action, we would get that reward.
+With that premise we could construct a policy that maximizes our rewards:
+
+![alt Performance plot](./policy.png)
+
 ### Implementation
 
 I was not sure about how to start this exercise, so I decided to take as base the work proposed in the previous module.
@@ -30,3 +41,7 @@ In the near future I would like to implement the full rainbow tools. One at time
 ### Trained Agent
 [![alt trained model](https://i9.ytimg.com/vi/u6jeM3qcoTw/mq3.jpg?sqp=COz3zYMG&rs=AOn4CLBQzElAJlGjnj1rwTzxLs35BCw30g)](https://youtu.be/u6jeM3qcoTw)
 
+#### References
+
+* https://en.wikipedia.org/wiki/Q-learning
+* https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
