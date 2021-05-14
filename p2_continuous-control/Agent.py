@@ -1,7 +1,5 @@
 import numpy as np
 import random
-import copy
-from collections import namedtuple, deque
 
 import torch
 import torch.nn.functional as F
@@ -27,6 +25,61 @@ class Agent:
     """
     Interacts with and learns from the environment.
     """
+    _actor_local = None
+    _actor_target = None
+    _actor_optimizer = None
+
+    @staticmethod
+    def get_actor_local():
+        if Agent._actor_local is None:
+            raise Exception('Should call set_actors first!')
+        return Agent._actor_local
+
+    @staticmethod
+    def get_actor_target():
+        if Agent._actor_target is None:
+            raise Exception('Should call set_actors first!')
+        return Agent._actor_target
+
+    @staticmethod
+    def get_actor_optimizer():
+        if Agent._actor_optimizer is None:
+            raise Exception('Should call set_actors first!')
+        return Agent._actor_optimizer
+
+    @staticmethod
+    def set_actors(state_size, action_size, random_seed):
+        Agent._actor_local = Actor(state_size, action_size, random_seed).to(device)
+        Agent._actor_target = Actor(state_size, action_size, random_seed).to(device)
+        Agent._actor_optimizer = optim.Adam(Agent._actor_local.parameters(), lr=LR_ACTOR)
+
+    _critic_local = None
+    _critic_target = None
+    _critic_optimizer = None
+
+    @staticmethod
+    def get_critic_local():
+        if Agent._critic_local is None:
+            raise Exception('Should call set_critics first!')
+        return Agent._critic_local
+
+    @staticmethod
+    def get_critic_target():
+        if Agent._critic_target is None:
+            raise Exception('Should call set_critics first!')
+        return Agent._critic_target
+
+    @staticmethod
+    def get_critic_optimizer():
+        if Agent._critic_optimizer is None:
+            raise Exception('Should call set_critics first!')
+        return Agent._critic_optimizer
+
+    @staticmethod
+    def set_critics(state_size, action_size, random_seed):
+        Agent._critic_local = Critic(state_size, action_size, random_seed).to(device)
+        Agent._critic_target = Critic(state_size, action_size, random_seed).to(device)
+        Agent._critic_optimizer = optim.Adam(Agent._critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
     def __init__(self, state_size, action_size, random_seed):
         """
@@ -44,20 +97,23 @@ class Agent:
         random.seed(random_seed)
 
         # Actor Network and its target network
-        self.actor_local = Actor(state_size, action_size, random_seed).to(device)
-        self.actor_target = Actor(state_size, action_size, random_seed).to(device)
-        self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=LR_ACTOR)
+        Agent.set_actors(state_size, action_size, random_seed)
+        self.actor_local = Agent.get_actor_local()
+        self.actor_target = Agent.get_actor_target()
+        self.actor_optimizer = Agent.get_actor_optimizer()
 
         # Critic Network and its target network
-        self.critic_local = Critic(state_size, action_size, random_seed).to(device)
-        self.critic_target = Critic(state_size, action_size, random_seed).to(device)
-        self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
+        Agent.set_critics(state_size, action_size, random_seed)
+        self.critic_local = Agent.get_critic_local()
+        self.critic_target = Agent.get_critic_target()
+        self.critic_optimizer = Agent.get_critic_optimizer()
 
         # Noise object
         self.noise = OUNoise(action_size, random_seed)
 
         # Replay Memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
+        ReplayBuffer.set_replay_buffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
+        self.memory = ReplayBuffer.get_replay_buffer()
 
     def step(self, state, action, reward, next_state, done):
         """
