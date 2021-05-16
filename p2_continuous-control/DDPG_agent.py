@@ -3,37 +3,40 @@ import numpy as np
 from collections import deque
 
 
-def ddpg(env, agents, n_episodes=1000, max_t=300, print_every=100):
-    scores_deque = deque(maxlen=print_every)
-    scores = []
-
+def ddpg(env, agent, n_episodes=1000, print_every=10):
+    scores_deque = deque(maxlen=100)
+    scores_all = []
     brain_name = env.brain_names[0]
 
     for i_episode in range(1, n_episodes + 1):
         env_info = env.reset(train_mode=True)[brain_name]
-        for agent in agents:
-            agent.reset()
-        score = 0
         states = env_info.vector_observations
-
-        for t in range(max_t):
-            actions = [agent.act(states[i]) for i, agent in enumerate(agents)]
+        agent.reset()
+        scores = np.zeros(agent.num_agents)
+        while True:
+            actions = agent.act(states)
             env_info = env.step(actions)[brain_name]
-            for i, agent in enumerate(agents):
-                next_state = env_info.vector_observations[i]
-                reward = env_info.rewards[i]
-                done = env_info.local_done[i]
-                agent.step(states[i], actions[i], reward, next_state, done)
-            states = env_info.vector_observations
-            score += np.mean(reward)
+            next_states = env_info.vector_observations
+            rewards = env_info.rewards
+            dones = env_info.local_done
+            agent.step(states, actions, rewards, next_states, dones)
+            states = next_states
+            scores += rewards
 
-            if done:
+            if np.any(dones):
                 break
 
-        scores_deque.append(score)
-        scores.append(score)
+        scores_deque.append(np.mean(scores))
+        scores_all.append(scores)
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)), end="")
-        torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
-        torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
         if i_episode % print_every == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
+
+        if np.all(np.array(scores_deque) > 30):
+            print('\nEnvironment solved in {:d} episodes! Mean score: {:.3f}'.format(
+                i_episode, np.mean(scores_deque)))
+            torch.save(agent.actor_local.state_dict(), 'trained_actor.pth')
+            torch.save(agent.critic_local.state_dict(), 'trained_critic.pth')
+            break
+
+    return scores_all
