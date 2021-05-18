@@ -65,5 +65,10 @@ ddpg pendulum and adapted to my state.
 Environment solved in 121 episodes! Mean score: 36.863.
 
 ### Ideas for future work
-I would like to work in the crawler environment.
+
+I would to try prioritized experience replay for this model, I found this paper
+[Improving DDPG via Prioritized Experience Replay](https://cardwing.github.io/files/RL_course_report.pdf).
+
+Maybe I need to reconsider between to store the full state for all the agents or just
+store one by one, and retrieving the full state in my sample method.
 
