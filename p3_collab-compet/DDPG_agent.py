@@ -3,7 +3,7 @@ import numpy as np
 from collections import deque
 
 
-def ddpg(env, agent, n_episodes=5000, print_every=100):
+def ddpg(env, agent, n_episodes=10000, print_every=100):
     scores_deque = deque(maxlen=100)
     scores_all = []
     brain_name = env.brain_names[0]

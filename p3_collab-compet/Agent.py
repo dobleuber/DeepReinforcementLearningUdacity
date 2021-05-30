@@ -4,6 +4,7 @@ import random
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+from math import ceil
 
 from Actor import Actor
 from Critic import Critic
@@ -18,6 +19,12 @@ LR_ACTOR = 1e-4         # learning rate of the actor
 LR_CRITIC = 1e-4
 # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
+
+# prioritized experience replay
+UPDATE_NN_EVERY = 1        # how often to update the network
+UPDATE_MEM_EVERY = 20          # how often to update the priorities
+UPDATE_MEM_PAR_EVERY = 3000     # how often to update the hyperparameters
+EXPERIENCES_PER_SAMPLING = ceil(BATCH_SIZE * UPDATE_MEM_EVERY / UPDATE_NN_EVERY)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -57,21 +64,39 @@ class Agent:
         self.noise = OUNoise((num_agents, action_size), random_seed)
 
         # Replay Memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, device, random_seed)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, EXPERIENCES_PER_SAMPLING, device, random_seed)
+
+        # Initialize time step (for updating every UPDATE_NN_EVERY steps)
+        self.t_step_nn = 0
+        # Initialize time step (for updating every UPDATE_MEM_PAR_EVERY steps)
+        self.t_step_mem_par = 0
+        # Initialize time step (for updating every UPDATE_MEM_EVERY steps)
+        self.t_step_mem = 0
 
     def step(self, state, action, reward, next_state, done):
         """
-        Save experience in replay memory, and use random sample from buffer to learn.
+        Save experience in replay memory, and use prioritized sample from buffer to learn.
         """
 
         # Save memory
         for i in range(self.num_agents):
             self.memory.add(state[i, :], action[i, :], reward[i], next_state[i, :], done[i])
 
-        # Learn from memory if enough samples exist
-        if len(self.memory) > BATCH_SIZE:
-            experiences = self.memory.sample()
-            self.learn(experiences, GAMMA)
+        # Learn every UPDATE_NN_EVERY time steps.
+        self.t_step_nn = (self.t_step_nn + 1) % UPDATE_NN_EVERY
+        self.t_step_mem = (self.t_step_mem + 1) % UPDATE_MEM_EVERY
+        self.t_step_mem_par = (self.t_step_mem_par + 1) % UPDATE_MEM_PAR_EVERY
+
+        if self.t_step_mem_par == 0:
+            self.memory.update_parameters()
+        if self.t_step_nn == 0:
+            # Learn from memory if enough samples exist
+            if self.memory.experience_count > EXPERIENCES_PER_SAMPLING:
+                experiences = self.memory.sample()
+                self.learn(experiences, GAMMA)
+
+        if self.t_step_mem == 0:
+            self.memory.update_memory_sampling()
 
     def act(self, states, add_noise=True):
         """
@@ -107,7 +132,7 @@ class Agent:
             experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples
             gamma (float): discount factor
         """
-        states, actions, rewards, next_states, dones = experiences
+        states, actions, rewards, next_states, dones, indices = experiences
 
         # update Critic
         # Get next predicted state, actions, and Q values
@@ -138,6 +163,10 @@ class Agent:
         # Update target networks
         self.soft_update(self.critic_local, self.critic_target, TAU)
         self.soft_update(self.actor_local, self.actor_target, TAU)
+
+        # Update priorities
+        delta = abs(Q_targets - Q_expected).detach().numpy()
+        self.memory.update_priorities(delta, indices)
 
     @staticmethod
     def soft_update(local_model, target_model, tau):
